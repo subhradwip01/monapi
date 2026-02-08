@@ -2,7 +2,7 @@
 
 Auto-generate secure, extensible REST APIs for MongoDB collections using configuration only.
 
-Define a schema. Get a full CRUD API. No boilerplate.
+Define a schema. Get a full CRUD API. No boilerplate. **Works with Express and Hono** (Bun/Deno/Cloudflare Workers).
 
 ## Install
 
@@ -10,10 +10,14 @@ Define a schema. Get a full CRUD API. No boilerplate.
 npm install monapi
 ```
 
-**Peer dependencies:**
+**Peer dependencies (pick your framework):**
 
 ```bash
+# Express (default)
 npm install express mongoose
+
+# Hono (works on Bun, Deno, Cloudflare Workers, Node)
+npm install hono mongoose
 ```
 
 ## Quick Start
@@ -52,6 +56,33 @@ POST   /api/users           Create user
 PUT    /api/users/:id       Replace user
 PATCH  /api/users/:id       Partial update user
 DELETE /api/users/:id       Delete user
+```
+
+### Hono (Bun / Deno / Cloudflare Workers / Node)
+
+```ts
+import { Hono } from 'hono'
+import mongoose, { Schema } from 'mongoose'
+import { Monapi } from 'monapi'
+
+mongoose.connect('mongodb://localhost:27017/myapp')
+
+const UserSchema = new Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+})
+
+const monapi = new Monapi({
+  connection: mongoose.connection,
+  framework: 'hono',
+})
+
+monapi.resource('users', { schema: UserSchema })
+
+const app = new Hono()
+app.route('/api', monapi.router())
+
+export default app // Works with Bun.serve, Deno.serve, etc.
 ```
 
 ## Filtering
@@ -358,6 +389,7 @@ monapi enforces safe defaults:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `connection` | `mongoose.Connection` | *required* | MongoDB connection |
+| `framework` | `'express' \| 'hono' \| FrameworkAdapter` | `'express'` | Framework to use |
 | `basePath` | `string` | `''` | Base path prefix for routes |
 | `auth` | `AuthConfig` | - | Auth configuration |
 | `defaults` | `DefaultConfig` | - | Global defaults |
@@ -378,7 +410,37 @@ monapi enforces safe defaults:
 
 ### `monapi.router()`
 
-Returns an Express `Router` with all registered collection routes.
+Returns a framework-specific router:
+- **Express**: Express `Router` instance
+- **Hono**: Hono app instance
+
+## Custom Framework Adapter
+
+You can bring your own framework by implementing the `FrameworkAdapter` interface:
+
+```ts
+import { Monapi, FrameworkAdapter } from 'monapi'
+
+const myAdapter: FrameworkAdapter = {
+  name: 'my-framework',
+  createRouter(collections, options) { /* ... */ },
+  wrapHandler(handler) { /* ... */ },
+  createErrorHandler(logger) { /* ... */ },
+}
+
+const monapi = new Monapi({
+  connection: mongoose.connection,
+  framework: myAdapter,
+})
+```
+
+## Contributing
+
+Contributions welcome! Areas that need help:
+- **Fastify adapter** - `src/adapters/framework/fastify.ts`
+- **NestJS adapter** - `src/adapters/framework/nestjs.ts`
+- **Koa adapter** - `src/adapters/framework/koa.ts`
+- **Zod/Joi/Yup schema adapters** - `src/adapters/schema/`
 
 ## License
 

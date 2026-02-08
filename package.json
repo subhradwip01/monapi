@@ -18,11 +18,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/subhradwip01/monapi.git"
   },
-  "homepage": "",
+  "homepage": "https://github.com/subhradwip01/monapi#readme",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/subhradwip01/monapi/issues"
   },
   "scripts": {
     "build": "tsup",

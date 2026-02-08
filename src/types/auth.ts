@@ -1,0 +1,76 @@
+import { Request, Response, NextFunction } from 'express'
+import { CRUDOperation, User } from './hooks'
+
+/**
+ * Permission context for permission functions
+ */
+export interface PermissionContext {
+  user: User
+  collection: string
+  operation: CRUDOperation
+  data?: any
+  id?: string
+  req: Request
+}
+
+/**
+ * Permission function that returns boolean or Promise<boolean>
+ */
+export type PermissionFunction = (ctx: PermissionContext) => boolean | Promise<boolean>
+
+/**
+ * Permission definition - can be array of roles or custom function
+ */
+export type Permission = string[] | PermissionFunction
+
+/**
+ * Permissions configuration for a collection
+ */
+export interface PermissionConfig {
+  list?: Permission
+  get?: Permission
+  create?: Permission
+  update?: Permission
+  patch?: Permission
+  delete?: Permission
+}
+
+/**
+ * Field-level permissions
+ */
+export interface FieldPermission {
+  read?: string[]
+  write?: string[]
+}
+
+/**
+ * Field-level permissions map
+ */
+export interface FieldPermissions {
+  [fieldName: string]: FieldPermission
+}
+
+/**
+ * Auth middleware function
+ */
+export type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<void>
+
+/**
+ * Auth configuration
+ */
+export interface AuthConfig {
+  /** Custom auth middleware to extract user from request */
+  middleware?: AuthMiddleware
+
+  /** JWT secret (if using built-in JWT auth) */
+  jwtSecret?: string
+
+  /** JWT options */
+  jwtOptions?: {
+    algorithm?: string
+    expiresIn?: string
+  }
+
+  /** Session secret (if using session auth) */
+  sessionSecret?: string
+}

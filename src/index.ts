@@ -1,6 +1,28 @@
 // Main class
 export { Monapi } from './monapi'
 
+// Core abstractions (framework-agnostic)
+export type {
+  MonapiRequest,
+  MonapiResponse,
+  MonapiHandler,
+  OperationResult,
+  CollectionContext,
+  FrameworkAdapter,
+  BuiltinFramework,
+} from './core/types'
+
+export {
+  listDocuments,
+  getDocument,
+  createDocument,
+  updateDocument,
+  patchDocument,
+  deleteDocument,
+} from './core/crud-operations'
+
+export { checkPermissions } from './core/permission-checker'
+
 // Types
 export type {
   MonapiConfig,
@@ -57,15 +79,29 @@ export type {
   HookEntry,
 } from './types/hooks'
 
-// Adapters
+// Schema adapters
 export { MongooseAdapter, createSchemaAdapter, detectSchemaType } from './adapters/schema'
 
+// Framework adapters
+export {
+  ExpressAdapter,
+  HonoAdapter,
+  resolveFrameworkAdapter,
+} from './adapters/framework'
+
 // Utilities
-export { MonapiError, NotFoundError, ValidationError, ForbiddenError, UnauthorizedError, BadRequestError } from './utils/errors'
+export {
+  MonapiError,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+  UnauthorizedError,
+  BadRequestError,
+} from './utils/errors'
 
 // Engine (for advanced users)
 export { parseFilters } from './engine/filter-parser'
 export { buildQuery, buildPaginationMeta } from './engine/query-builder'
 
-// Middleware
+// Middleware (Express-specific, kept for backward compat)
 export { createErrorHandler } from './middleware/error-handler'

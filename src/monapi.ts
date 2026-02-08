@@ -1,35 +1,50 @@
-import { Router, RequestHandler } from 'express'
 import { Model } from 'mongoose'
 import { MonapiConfig, CollectionConfig, Logger } from './types'
 import { SchemaAdapter } from './types/schema'
 import { createSchemaAdapter } from './adapters/schema'
-import { createCollectionRouter } from './router/express-router'
-import { createErrorHandler } from './middleware/error-handler'
-import { createAuthMiddleware } from './middleware/auth'
+import { resolveFrameworkAdapter } from './adapters/framework'
+import { FrameworkAdapter, CollectionContext, BuiltinFramework } from './core/types'
 import { defaultLogger } from './utils/logger'
 
 /**
  * Main Monapi class - orchestrates everything.
+ * Framework-agnostic: works with Express, Fastify, Hono, NestJS, or custom adapters.
  *
  * Usage:
+ *   // Express (default)
  *   const monapi = new Monapi({ connection: mongoose.connection })
  *   monapi.resource('users', { schema: UserSchema })
- *   monapi.resource('posts', { schema: PostModel })
  *   app.use('/api', monapi.router())
+ *
+ *   // Fastify
+ *   const monapi = new Monapi({ connection, framework: 'fastify' })
+ *   monapi.resource('users', { schema: UserSchema })
+ *   await fastify.register(monapi.router(), { prefix: '/api' })
+ *
+ *   // Hono
+ *   const monapi = new Monapi({ connection, framework: 'hono' })
+ *   monapi.resource('users', { schema: UserSchema })
+ *   app.route('/api', monapi.router())
+ *
+ *   // NestJS
+ *   const monapi = new Monapi({ connection, framework: 'nestjs' })
+ *   monapi.resource('users', { schema: UserSchema })
+ *   // In AppModule: imports: [monapi.router()]
  */
 export class Monapi {
   private config: MonapiConfig
   private logger: Logger
-  private collections: Map<string, { config: CollectionConfig; model: Model<any>; adapter: SchemaAdapter }> = new Map()
-  private authMiddleware?: RequestHandler
+  private collections: Map<string, CollectionContext> = new Map()
+  private frameworkAdapter: FrameworkAdapter
 
   constructor(config: MonapiConfig) {
     this.config = config
     this.logger = config.logger ?? defaultLogger
+    this.frameworkAdapter = resolveFrameworkAdapter(
+      config.framework as BuiltinFramework | FrameworkAdapter | undefined,
+    )
 
-    if (config.auth) {
-      this.authMiddleware = createAuthMiddleware(config.auth)
-    }
+    this.logger.debug(`Using framework adapter: ${this.frameworkAdapter.name}`)
   }
 
   /**
@@ -40,7 +55,14 @@ export class Monapi {
     const adapter = collectionConfig.adapter ?? createSchemaAdapter(collectionConfig.schema)
     const model = this.resolveModel(name, collectionConfig, adapter)
 
-    this.collections.set(name, { config: collectionConfig, model, adapter })
+    this.collections.set(name, {
+      name,
+      model,
+      adapter,
+      config: collectionConfig,
+      defaults: this.config.defaults,
+      logger: this.logger,
+    })
 
     this.logger.debug(`Registered resource: ${name}`, {
       fields: adapter.getFields(),
@@ -50,44 +72,49 @@ export class Monapi {
   }
 
   /**
-   * Generate the Express router with all registered collection routes.
+   * Generate the framework-specific router with all registered collection routes.
+   *
+   * - Express: returns an Express Router
+   * - Fastify: returns a Fastify plugin function
+   * - Hono: returns a Hono app instance
+   * - NestJS: returns a dynamic module definition
    */
-  router(): Router {
-    const mainRouter = Router()
-    const basePath = this.config.basePath ?? ''
+  router(): any {
+    const result = this.frameworkAdapter.createRouter(this.collections, {
+      basePath: this.config.basePath,
+      authMiddleware: this.config.auth?.middleware,
+    })
 
-    for (const [name, { config, model, adapter }] of this.collections) {
-      const collectionRouter = createCollectionRouter({
-        collectionName: name,
-        model,
-        adapter,
-        config,
-        defaults: this.config.defaults,
-        logger: this.logger,
-        authMiddleware: this.authMiddleware,
-      })
-
-      const path = basePath ? `${basePath}/${name}` : `/${name}`
-      mainRouter.use(path, collectionRouter)
-
-      this.logger.info(`Mounted routes: ${path}`)
+    // For Express, attach error handler to the router
+    if (this.frameworkAdapter.name === 'express') {
+      result.use(this.frameworkAdapter.createErrorHandler(this.logger))
     }
 
-    // Attach error handler
-    mainRouter.use(createErrorHandler(this.logger))
+    for (const [name] of this.collections) {
+      const basePath = this.config.basePath ?? ''
+      const path = basePath ? `${basePath}/${name}` : `/${name}`
+      this.logger.info(`Mounted routes: ${path} [${this.frameworkAdapter.name}]`)
+    }
 
-    return mainRouter
+    return result
   }
 
   /**
-   * Get a registered collection's model
+   * Get the framework adapter instance.
+   */
+  getFrameworkAdapter(): FrameworkAdapter {
+    return this.frameworkAdapter
+  }
+
+  /**
+   * Get a registered collection's model.
    */
   getModel(name: string): Model<any> | undefined {
     return this.collections.get(name)?.model
   }
 
   /**
-   * Get a registered collection's adapter
+   * Get a registered collection's adapter.
    */
   getAdapter(name: string): SchemaAdapter | undefined {
     return this.collections.get(name)?.adapter
@@ -97,18 +124,15 @@ export class Monapi {
    * Resolve or create a Mongoose model from the collection config.
    */
   private resolveModel(name: string, config: CollectionConfig, adapter: SchemaAdapter): Model<any> {
-    // If model is explicitly provided
     if (config.model) {
       return config.model
     }
 
-    // If the adapter has a Mongoose model (e.g., Model was passed as schema)
     const adapterModel = adapter.getMongooseModel?.()
     if (adapterModel) {
       return adapterModel
     }
 
-    // If a raw Mongoose Schema was provided, create a model
     const mongooseSchema = adapter.getMongooseSchema?.()
     if (mongooseSchema) {
       const modelName = name.charAt(0).toUpperCase() + name.slice(1)

@@ -1,14 +1,13 @@
 import { Connection, Model, Schema } from 'mongoose'
-import { Request, Response, NextFunction, RequestHandler } from 'express'
 import { LifecycleHooks } from './hooks'
 import { PermissionConfig, FieldPermissions, AuthConfig } from './auth'
 import { QueryConfig } from './query'
 import { SchemaAdapter } from './schema'
 
 /**
- * Handler function for CRUD operations
+ * Handler function for CRUD operations (framework-specific)
  */
-export type Handler = (req: Request, res: Response, next: NextFunction) => void | Promise<void>
+export type Handler = (...args: any[]) => any
 
 /**
  * Custom handlers for CRUD operations
@@ -26,20 +25,20 @@ export interface CRUDHandlers {
  * Middleware configuration
  */
 export interface MiddlewareConfig {
-  all?: RequestHandler[]
-  list?: RequestHandler[]
-  get?: RequestHandler[]
-  create?: RequestHandler[]
-  update?: RequestHandler[]
-  patch?: RequestHandler[]
-  delete?: RequestHandler[]
+  all?: any[]
+  list?: any[]
+  get?: any[]
+  create?: any[]
+  update?: any[]
+  patch?: any[]
+  delete?: any[]
 }
 
 /**
  * Collection configuration
  */
 export interface CollectionConfig {
-  /** Mongoose schema, Typegoose class, or validator schema (Zod/Joi/Yup) */
+  /** Mongoose schema or model */
   schema: Schema | Model<any> | any
 
   /** Optional additional validator schema (for mixed usage) */

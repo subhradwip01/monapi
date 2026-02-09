@@ -54,7 +54,6 @@ export type {
   ValidationResult,
   ValidationError as SchemaValidationError,
   FieldMetadata,
-  SchemaOptions,
 } from './types/schema'
 
 export { SchemaType } from './types/schema'
@@ -80,7 +79,13 @@ export type {
 } from './types/hooks'
 
 // Schema adapters
-export { MongooseAdapter, createSchemaAdapter, detectSchemaType } from './adapters/schema'
+export {
+  MongooseAdapter,
+  TypegooseAdapter,
+  createSchemaAdapter,
+  detectSchemaType,
+} from './adapters/schema'
+export type { TypegooseAdapterOptions } from './adapters/schema'
 
 // Framework adapters
 export {

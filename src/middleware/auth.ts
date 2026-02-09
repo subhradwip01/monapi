@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express'
 import { PermissionConfig, Permission, PermissionContext, AuthConfig, User, CRUDOperation } from '../types'
 import { ForbiddenError, UnauthorizedError } from '../utils/errors'
 
@@ -22,7 +21,7 @@ export function createPermissionMiddleware(
   routeOp: string,
   permissions?: PermissionConfig,
 ) {
-  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  return async (req: any, _res: any, next: any): Promise<void> => {
     try {
       // If no permissions configured, allow all
       if (!permissions) {
@@ -38,7 +37,7 @@ export function createPermissionMiddleware(
         return
       }
 
-      const user = (req as any).user as User | undefined
+      const user = req.user as User | undefined
 
       // Permission is set but no user - require auth
       if (!user) {
@@ -100,7 +99,7 @@ export function createAuthMiddleware(authConfig?: AuthConfig) {
   }
 
   // Default: no-op, expect user to be set by upstream middleware
-  return (_req: Request, _res: Response, next: NextFunction): void => {
+  return (_req: any, _res: any, next: any): void => {
     next()
   }
 }

@@ -32,7 +32,7 @@ export interface FieldMetadata {
 
 /**
  * Base interface for schema adapters
- * All schema types (Mongoose, Zod, Joi, etc.) must implement this
+ * All schema types must implement this
  */
 export interface SchemaAdapter {
   /**
@@ -77,17 +77,5 @@ export interface SchemaAdapter {
 export enum SchemaType {
   Mongoose = 'mongoose',
   Typegoose = 'typegoose',
-  Zod = 'zod',
-  Joi = 'joi',
-  Yup = 'yup',
   Unknown = 'unknown',
-}
-
-/**
- * Schema configuration options
- */
-export interface SchemaOptions {
-  strict?: boolean
-  timestamps?: boolean
-  validateBeforeSave?: boolean
 }

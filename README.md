@@ -18,6 +18,9 @@ npm install express mongoose
 
 # Hono (works on Bun, Deno, Cloudflare Workers, Node)
 npm install hono mongoose
+
+# Using Typegoose? Add it alongside mongoose
+npm install @typegoose/typegoose mongoose
 ```
 
 ## Quick Start
@@ -57,6 +60,37 @@ PUT    /api/users/:id       Replace user
 PATCH  /api/users/:id       Partial update user
 DELETE /api/users/:id       Delete user
 ```
+
+### Typegoose
+
+Already using Typegoose? Pass your decorated class directly — no manual model creation needed:
+
+```ts
+import { prop } from '@typegoose/typegoose'
+import { Monapi } from 'monapi'
+
+class User {
+  @prop({ required: true })
+  public name!: string
+
+  @prop({ required: true })
+  public email!: string
+
+  @prop()
+  public age?: number
+
+  @prop({ enum: ['admin', 'user'], default: 'user' })
+  public role?: string
+}
+
+const monapi = new Monapi({ connection: mongoose.connection })
+
+monapi.resource('users', { schema: User })
+
+app.use('/api', monapi.router())
+```
+
+Monapi detects the Typegoose class automatically, calls `getModelForClass()` under the hood, and generates the same full CRUD API. All features (filtering, hooks, permissions, etc.) work exactly the same.
 
 ### Hono (Bun / Deno / Cloudflare Workers / Node)
 
@@ -418,7 +452,7 @@ monapi enforces safe defaults:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `schema` | `Schema \| Model` | Mongoose schema or model |
+| `schema` | `Schema \| Model \| TypegooseClass` | Mongoose schema, model, or Typegoose class |
 | `model` | `Model` | Explicit Mongoose model (optional) |
 | `query` | `QueryConfig` | Filter/sort/pagination config |
 | `hooks` | `LifecycleHooks` | Before/after hooks |
@@ -440,6 +474,8 @@ Contributions welcome! Areas that need help:
 - **NestJS adapter** - Add NestJS framework support
 - **Koa adapter** - Add Koa framework support
 - **Zod/Joi/Yup schema adapters** - Alternative schema validation support
+
+**Already supported:** Mongoose schemas/models, Typegoose classes, Express, Hono.
 
 See the [GitHub repo](https://github.com/subhradwip01/monapi) for details.
 

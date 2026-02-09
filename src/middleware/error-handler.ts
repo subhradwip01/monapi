@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express'
 import { MonapiError } from '../utils/errors'
 import { Logger, ErrorResponse } from '../types'
 
@@ -6,7 +5,7 @@ import { Logger, ErrorResponse } from '../types'
  * Create Express error handling middleware
  */
 export function createErrorHandler(logger?: Logger) {
-  return (err: Error, _req: Request, res: Response, _next: NextFunction): void => {
+  return (err: Error, _req: any, res: any, _next: any): void => {
     if (err instanceof MonapiError) {
       if (logger) {
         logger.warn(`${err.code}: ${err.message}`, { statusCode: err.statusCode })

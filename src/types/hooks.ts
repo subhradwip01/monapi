@@ -1,4 +1,3 @@
-import { Request, Response } from 'express'
 import { MongoQuery } from './query'
 
 /**
@@ -41,11 +40,11 @@ export interface HookContext {
   /** Document ID (for get/update/delete operations) */
   id?: string
 
-  /** Express request object */
-  req: Request
+  /** Raw framework request object (Express Request, Hono Context, etc.) */
+  req: any
 
-  /** Express response object */
-  res: Response
+  /** Raw framework response object (Express Response, Hono Context, etc.) */
+  res: any
 
   /** Additional metadata */
   meta?: Record<string, any>

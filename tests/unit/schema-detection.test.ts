@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose'
-import { detectSchemaType, createSchemaAdapter, isSupportedSchema } from '../../src/adapters/schema'
+import { detectSchemaType, createSchemaAdapter } from '../../src/adapters/schema'
 import { SchemaType } from '../../src/types/schema'
 import { MongooseAdapter } from '../../src/adapters/schema/MongooseAdapter'
 
@@ -25,19 +25,29 @@ describe('detectSchemaType', () => {
     expect(detectSchemaType('schema')).toBe(SchemaType.Unknown)
   })
 
-  it('should detect Zod-like schema', () => {
-    const zodLike = { _def: {}, parse: () => {} }
-    expect(detectSchemaType(zodLike)).toBe(SchemaType.Zod)
+  it('should detect Typegoose class with Reflect metadata', () => {
+    // Simulate a Typegoose class with Reflect metadata
+    class FakeTypegooseClass {}
+    const R = Reflect as any
+    const originalGetMetadata = R.getMetadata
+
+    // Temporarily mock Reflect.getMetadata
+    R.getMetadata = (key: string, target: any) => {
+      if (key === 'typegoose:properties' && target === FakeTypegooseClass.prototype) {
+        return new Map([['name', { type: String }]])
+      }
+      return originalGetMetadata?.call(Reflect, key, target)
+    }
+
+    expect(detectSchemaType(FakeTypegooseClass)).toBe(SchemaType.Typegoose)
+
+    // Restore
+    R.getMetadata = originalGetMetadata
   })
 
-  it('should detect Joi-like schema', () => {
-    const joiLike = { isJoi: true }
-    expect(detectSchemaType(joiLike)).toBe(SchemaType.Joi)
-  })
-
-  it('should detect Yup-like schema', () => {
-    const yupLike = { __isYupSchema__: true }
-    expect(detectSchemaType(yupLike)).toBe(SchemaType.Yup)
+  it('should return Unknown for class without Typegoose metadata', () => {
+    class PlainClass {}
+    expect(detectSchemaType(PlainClass)).toBe(SchemaType.Unknown)
   })
 })
 
@@ -50,21 +60,5 @@ describe('createSchemaAdapter', () => {
 
   it('should throw for unsupported schema types', () => {
     expect(() => createSchemaAdapter({ random: true })).toThrow()
-  })
-
-  it('should throw for Zod (not yet implemented)', () => {
-    const zodLike = { _def: {}, parse: () => {} }
-    expect(() => createSchemaAdapter(zodLike)).toThrow(/Zod/)
-  })
-})
-
-describe('isSupportedSchema', () => {
-  it('should return true for Mongoose schema', () => {
-    const schema = new Schema({ name: String })
-    expect(isSupportedSchema(schema)).toBe(true)
-  })
-
-  it('should return false for unknown objects', () => {
-    expect(isSupportedSchema({ foo: 'bar' })).toBe(false)
   })
 })

@@ -1,12 +1,13 @@
-import { Request, Response } from 'express'
 import { LifecycleHooks, HookContext, CRUDOperation, MongoQuery, User } from '../types'
 import { Logger } from '../types/config'
 
 interface CreateHookContextParams {
   collection: string
   operation: CRUDOperation
-  req: Request
-  res: Response
+  /** Raw framework request (Express Request, Hono Context, etc.) */
+  req: any
+  /** Raw framework response (Express Response, Hono Context, etc.) */
+  res: any
   query?: MongoQuery
   data?: any
   id?: string
@@ -17,7 +18,7 @@ interface CreateHookContextParams {
  * Create a hook context object
  */
 export function createHookContext(params: CreateHookContextParams): HookContext {
-  const user = (params.req as any).user as User | undefined
+  const user = params.req?.user as User | undefined
 
   return {
     collection: params.collection,

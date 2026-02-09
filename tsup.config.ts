@@ -9,5 +9,5 @@ export default defineConfig({
   clean: true,
   minify: false,
   treeshake: true,
-  external: ['mongoose', 'express']
+  external: ['mongoose', 'express', 'hono', '@typegoose/typegoose']
 })

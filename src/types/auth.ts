@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express'
 import { CRUDOperation, User } from './hooks'
 
 /**
@@ -10,7 +9,8 @@ export interface PermissionContext {
   operation: CRUDOperation
   data?: any
   id?: string
-  req: Request
+  /** Raw framework request object (Express Request, Hono Context, etc.) */
+  req: any
 }
 
 /**
@@ -51,9 +51,9 @@ export interface FieldPermissions {
 }
 
 /**
- * Auth middleware function
+ * Auth middleware function (framework-specific: Express middleware or Hono middleware)
  */
-export type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<void>
+export type AuthMiddleware = ((...args: any[]) => any) | any
 
 /**
  * Auth configuration

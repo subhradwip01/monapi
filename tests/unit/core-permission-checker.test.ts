@@ -66,4 +66,37 @@ describe('checkPermissions (core)', () => {
       }),
     ).rejects.toThrow(ForbiddenError)
   })
+
+  it('should allow public permission without any user', async () => {
+    await expect(
+      checkPermissions(mockReq(), 'products', 'list', { list: 'public' }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('should allow public permission even with a user present', async () => {
+    await expect(
+      checkPermissions(mockReq({ id: 'u1', roles: ['user'] }), 'products', 'get', {
+        get: 'public',
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('should allow public on one op but enforce auth on another', async () => {
+    const permissions = { list: 'public' as const, create: ['admin'] as string[] }
+
+    // list is public - no user needed
+    await expect(
+      checkPermissions(mockReq(), 'products', 'list', permissions),
+    ).resolves.toBeUndefined()
+
+    // create requires admin - no user throws
+    await expect(
+      checkPermissions(mockReq(), 'products', 'create', permissions),
+    ).rejects.toThrow(UnauthorizedError)
+
+    // create with admin role passes
+    await expect(
+      checkPermissions(mockReq({ id: 'u1', roles: ['admin'] }), 'products', 'create', permissions),
+    ).resolves.toBeUndefined()
+  })
 })

@@ -89,11 +89,6 @@ export class HonoAdapter implements FrameworkAdapter {
 
     const app = new Hono()
 
-    // Global auth middleware
-    if (options?.authMiddleware) {
-      app.use('*', options.authMiddleware)
-    }
-
     // Global error handler
     app.onError((err: Error, c: any) => {
       if (err instanceof MonapiError) {
@@ -107,7 +102,7 @@ export class HonoAdapter implements FrameworkAdapter {
     })
 
     for (const [name, ctx] of collections) {
-      this.registerCollectionRoutes(app, `/${name}`, ctx)
+      this.registerCollectionRoutes(app, `/${name}`, ctx, options?.authMiddleware)
     }
 
     return app
@@ -151,7 +146,7 @@ export class HonoAdapter implements FrameworkAdapter {
     }
   }
 
-  private registerCollectionRoutes(app: any, prefix: string, ctx: CollectionContext): void {
+  private registerCollectionRoutes(app: any, prefix: string, ctx: CollectionContext, authMiddleware?: any): void {
     const { name, config } = ctx
 
     const createHandler = (
@@ -159,6 +154,13 @@ export class HonoAdapter implements FrameworkAdapter {
       handler: (req: MonapiRequest, res: MonapiResponse, opts: any) => Promise<any>,
     ) => {
       return async (c: any) => {
+        const isPublic = config.permissions?.[op as keyof typeof config.permissions] === 'public'
+
+        // Run auth middleware for non-public operations
+        if (authMiddleware && !isPublic) {
+          await authMiddleware(c, async () => {})
+        }
+
         const mReq = toMonapiRequest(c)
 
         // Parse body for write operations
@@ -170,8 +172,8 @@ export class HonoAdapter implements FrameworkAdapter {
           }
         }
 
-        // Check permissions
-        if (config.permissions) {
+        // Check permissions (skip for public operations)
+        if (config.permissions && !isPublic) {
           await checkPermissions(mReq, name, op, config.permissions)
         }
 

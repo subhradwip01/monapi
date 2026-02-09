@@ -29,6 +29,9 @@ export async function checkPermissions(
   const permission = permissions[routeOp as keyof PermissionConfig]
   if (!permission) return
 
+  // Public routes skip auth entirely
+  if (permission === 'public') return
+
   const user = req.user as User | undefined
   if (!user) throw new UnauthorizedError()
 

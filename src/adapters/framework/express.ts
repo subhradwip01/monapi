@@ -113,13 +113,15 @@ export class ExpressAdapter implements FrameworkAdapter {
 
     for (const op of ops) {
       const stack: RequestHandler[] = []
+      const isPublic = config.permissions?.[op as keyof typeof config.permissions] === 'public'
 
-      if (authMiddleware) stack.push(authMiddleware)
+      // Skip auth middleware for public operations
+      if (authMiddleware && !isPublic) stack.push(authMiddleware)
       if (config.middleware?.all) stack.push(...config.middleware.all)
       if (config.middleware?.[op]) stack.push(...config.middleware[op]!)
 
-      // Permission check
-      if (config.permissions) {
+      // Permission check (skip for public operations)
+      if (config.permissions && !isPublic) {
         stack.push(async (req: Request, _res: Response, next: NextFunction) => {
           try {
             await checkPermissions(toMonapiRequest(req), name, op, config.permissions)

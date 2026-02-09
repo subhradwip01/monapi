@@ -77,194 +77,31 @@
 
 ---
 
-## Phase 7: Framework-Agnostic Refactor (PLANNED - Next Session)
-
-### Problem
-monapi v0.1.0 is tightly coupled to Express. These files directly import Express types:
-- `src/engine/crud-handlers.ts` - handlers use `(req: Request, res: Response, next: NextFunction)`
-- `src/router/express-router.ts` - creates Express `Router`
-- `src/middleware/auth.ts` - uses Express middleware signature
-- `src/middleware/error-handler.ts` - Express error middleware `(err, req, res, next)`
-- `src/engine/hook-executor.ts` - puts Express `req`/`res` into HookContext
-- `src/types/config.ts` - imports Express types for Handler, MiddlewareConfig
-- `src/types/auth.ts` - imports Express types for AuthMiddleware
-- `src/types/hooks.ts` - imports Express types for HookContext
-
-### Goal
-Make monapi work with **any** Node.js framework: Express, Fastify, NestJS, Hono, Koa, Bun.serve — while keeping Express as the default and maintaining backward compatibility.
-
-### What's Already Framework-Agnostic (no changes needed)
-- `src/engine/filter-parser.ts` - pure function, takes plain objects, returns MongoDB filter
-- `src/engine/query-builder.ts` - pure function, takes plain objects, returns MongoQuery
-- `src/adapters/schema/*` - Mongoose only, no framework dependency
-- `src/utils/errors.ts` - plain error classes
-- `src/utils/logger.ts` - plain console logger
-- `src/types/query.ts` - no framework imports
-- `src/types/schema.ts` - no framework imports
-
-### Target Frameworks (v0.2.0)
-1. **Express** (done - default adapter)
-2. **Hono** (done - works on Bun/Deno/Cloudflare Workers/Node)
+## Phase 7: Framework-Agnostic Refactor (COMPLETED)
+- [x] Core abstractions (`src/core/types.ts` - MonapiRequest, MonapiResponse, FrameworkAdapter)
+- [x] Pure CRUD operations (`src/core/crud-operations.ts` - framework-agnostic business logic)
+- [x] Permission checker (`src/core/permission-checker.ts` - framework-agnostic auth)
+- [x] Express adapter (`src/adapters/framework/express.ts`)
+- [x] Hono adapter (`src/adapters/framework/hono.ts` - Bun/Deno/Cloudflare Workers/Node)
+- [x] Adapter factory (`src/adapters/framework/index.ts`)
+- [x] Updated Monapi class to accept `framework: 'express' | 'hono'`
+- [x] Tests: `core-permission-checker.test.ts` (10 tests), `framework-adapters.test.ts` (12 tests)
 
 ### Future Frameworks (open-source contributions welcome)
-3. **Fastify**
-4. **NestJS**
-5. **Koa**
-6. **Bun.serve**
+- Fastify adapter
+- NestJS adapter
+- Koa adapter
 
-### Implementation Plan
-
-#### Step 1: Define Framework-Agnostic Request/Response Abstraction
-Create `src/core/types.ts` with framework-neutral interfaces:
-
-```ts
-interface MonapiRequest {
-  params: Record<string, string>     // URL params (:id)
-  query: Record<string, any>         // Query string
-  body: any                          // Request body
-  headers: Record<string, string>    // Headers
-  method: string                     // GET, POST, etc.
-  path: string                       // URL path
-  user?: any                         // Auth user (set by auth middleware)
-  raw: any                           // Original framework request (for hooks)
-}
-
-interface MonapiResponse {
-  status(code: number): MonapiResponse
-  json(data: any): void
-  setHeader(key: string, value: string): MonapiResponse
-  raw: any                           // Original framework response (for hooks)
-}
-```
-
-#### Step 2: Extract Core CRUD Logic from Express Handlers
-Create `src/core/crud-operations.ts` — pure business logic functions:
-
-```ts
-// These take MonapiRequest and return plain data objects
-// No framework types, no res.json() calls
-async function listDocuments(model, query, options): Promise<{ data, meta }>
-async function getDocument(model, id, options): Promise<{ data }>
-async function createDocument(model, data, adapter, options): Promise<{ data, statusCode }>
-async function updateDocument(model, id, data, adapter, options): Promise<{ data }>
-async function patchDocument(model, id, data, options): Promise<{ data }>
-async function deleteDocument(model, id, options): Promise<{ data }>
-```
-
-#### Step 3: Create Framework Adapter Interface
-Create `src/adapters/framework/types.ts`:
-
-```ts
-interface FrameworkAdapter {
-  name: string
-  createRouter(collections: Map<string, CollectionConfig>): any  // framework-specific router
-  wrapHandler(fn: MonapiHandler): any                            // convert to framework handler
-  extractRequest(rawReq: any): MonapiRequest                     // framework req -> MonapiRequest
-  sendResponse(rawRes: any, statusCode: number, data: any): void // send JSON response
-  createErrorHandler(logger?: Logger): any                       // framework error middleware
-}
-```
-
-#### Step 4: Implement Express Adapter (refactor existing code)
-Move current Express-specific code to `src/adapters/framework/express.ts`:
-- Wraps core CRUD operations into Express `(req, res, next)` handlers
-- Creates Express Router
-- Maps Express req/res to MonapiRequest/MonapiResponse
-
-#### Step 5: Implement Fastify Adapter
-Create `src/adapters/framework/fastify.ts`:
-- Registers Fastify routes with schemas
-- Maps Fastify request/reply to MonapiRequest/MonapiResponse
-- Uses Fastify's built-in validation and serialization
-
-#### Step 6: Implement Hono Adapter
-Create `src/adapters/framework/hono.ts`:
-- Works on Bun, Deno, Cloudflare Workers, Node
-- Maps Hono's `c.req` / `c.json()` to MonapiRequest/MonapiResponse
-
-#### Step 7: Update Monapi Class
-Refactor `src/monapi.ts` to accept a framework adapter:
-
-```ts
-// Express (default - backward compatible)
-const monapi = new Monapi({ connection, framework: 'express' })
-app.use('/api', monapi.router())
-
-// Fastify
-const monapi = new Monapi({ connection, framework: 'fastify' })
-monapi.register(fastifyApp, { prefix: '/api' })
-
-// Hono
-const monapi = new Monapi({ connection, framework: 'hono' })
-honoApp.route('/api', monapi.router())
-
-// Or bring your own adapter
-const monapi = new Monapi({ connection, framework: customAdapter })
-```
-
-#### Step 8: Update Hook Context
-Refactor HookContext to use MonapiRequest/MonapiResponse instead of Express types, but keep `raw` references to the original framework objects for advanced users.
-
-#### Step 9: Subpath Exports for Tree-Shaking
-Update package.json exports so users only import what they need:
-
-```json
-{
-  "exports": {
-    ".": "./dist/index.js",
-    "./express": "./dist/adapters/framework/express.js",
-    "./fastify": "./dist/adapters/framework/fastify.js",
-    "./hono": "./dist/adapters/framework/hono.js"
-  }
-}
-```
-
-#### Step 10: Tests and Examples per Framework
-- Unit tests for core CRUD operations (framework-independent)
-- Integration tests per adapter (Express, Fastify, Hono)
-- Example files: `examples/express.ts`, `examples/fastify.ts`, `examples/hono.ts`
-
-### New Architecture After Refactor
-
-```
-src/
-  index.ts                          # Main entry + public API
-  monapi.ts                         # Orchestrator (framework-agnostic)
-  core/
-    types.ts                        # MonapiRequest, MonapiResponse
-    crud-operations.ts              # Pure CRUD business logic
-    hook-executor.ts                # Framework-agnostic hooks
-    permission-checker.ts           # Framework-agnostic auth
-  engine/
-    filter-parser.ts                # (unchanged)
-    query-builder.ts                # (unchanged)
-  adapters/
-    schema/                         # (unchanged)
-      MongooseAdapter.ts
-      index.ts
-    framework/
-      types.ts                      # FrameworkAdapter interface
-      express.ts                    # Express adapter
-      fastify.ts                    # Fastify adapter
-      hono.ts                       # Hono adapter
-      index.ts                      # Auto-detection + factory
-  types/                            # (updated - remove Express imports)
-  utils/                            # (unchanged)
-```
-
-### Breaking Changes to Manage
-- HookContext `req`/`res` will become `MonapiRequest`/`MonapiResponse` (with `.raw` for original)
-- `MiddlewareConfig` will change from Express RequestHandler[] to a generic type
-- `Handler` type will change signature
-- **Mitigation**: v0.2.0 release with migration guide, Express adapter keeps same DX
-
-### Estimated Work
-- Step 1-2: Core abstraction (~2 hours)
-- Step 3-4: Express adapter refactor (~1 hour)
-- Step 5: Fastify adapter (~1 hour)
-- Step 6: Hono adapter (~1 hour)
-- Step 7-8: Monapi class + hooks update (~1 hour)
-- Step 9-10: Exports, tests, examples (~2 hours)
+## Phase 8: Public Routes & Polish (COMPLETED)
+- [x] `'public'` permission type - operations marked `'public'` skip auth middleware and permission checks
+- [x] Express adapter: skips auth middleware for public operations per-route
+- [x] Hono adapter: applies auth per-route (not globally) so public ops can skip it
+- [x] Permission checker: returns immediately for `'public'` permission
+- [x] Tests: 3 new tests for public permissions (155 total, 10 suites)
+- [x] README updated: public routes docs, removed custom framework adapter section
+- [x] `docs/files.md` updated with new core/ and adapters/framework/ files
+- [x] `MonapiConfig.framework` type fixed: `'express' | 'fastify'` → `'express' | 'hono'`
+- [x] Version bumped to 0.2.0
 
 ---
 
@@ -272,31 +109,27 @@ src/
 
 ```
 src/
-  index.ts                    # Main entry point & public API exports
-  monapi.ts                   # Monapi class (orchestrator)
-  types/                      # TypeScript interfaces
-    config.ts                 # Main config, handlers, middleware, response types
-    query.ts                  # Filter, query, pagination types
-    schema.ts                 # SchemaAdapter, validation, field metadata
-    auth.ts                   # Permission, auth config types
-    hooks.ts                  # Lifecycle hooks, context types
-    index.ts                  # Re-export barrel
-  adapters/schema/            # Schema adapters
-    MongooseAdapter.ts        # Mongoose schema/model adapter
-    index.ts                  # Detection & factory
+  index.ts                          # Main entry + public API exports
+  monapi.ts                         # Orchestrator (framework-agnostic)
+  core/
+    types.ts                        # MonapiRequest, MonapiResponse, FrameworkAdapter
+    crud-operations.ts              # Pure CRUD business logic
+    permission-checker.ts           # Framework-agnostic auth (supports 'public')
   engine/
-    filter-parser.ts          # Query param -> MongoDB filter
-    query-builder.ts          # Full query construction (sort, page, fields)
-    crud-handlers.ts          # CRUD operation handler factory
-    hook-executor.ts          # Lifecycle hook runner
-  router/
-    express-router.ts         # Express router generator
-  middleware/
-    error-handler.ts          # Error handling middleware
-    auth.ts                   # Auth & permission middleware
-  utils/
-    errors.ts                 # Custom error classes
-    logger.ts                 # Default logger
-examples/
-  basic-usage.ts              # Full working example
+    filter-parser.ts                # Query param → MongoDB filter
+    query-builder.ts                # Full query construction (sort, page, fields)
+    crud-handlers.ts                # Legacy Express handlers
+    hook-executor.ts                # Lifecycle hook runner
+  adapters/
+    schema/
+      MongooseAdapter.ts            # Mongoose schema/model adapter
+      index.ts                      # Schema detection & factory
+    framework/
+      express.ts                    # Express adapter
+      hono.ts                       # Hono adapter (Bun/Deno/Workers/Node)
+      index.ts                      # Adapter factory
+  types/                            # TypeScript interfaces
+  middleware/                       # Legacy Express middleware
+  router/                          # Legacy Express router
+  utils/                           # Error classes, logger
 ```

@@ -248,6 +248,25 @@ const monapi = new Monapi({
 })
 ```
 
+### Public routes (no auth required)
+
+Mark specific operations as `'public'` to skip authentication entirely:
+
+```ts
+monapi.resource('products', {
+  schema: ProductSchema,
+  permissions: {
+    list: 'public',              // Anyone can browse products
+    get: 'public',               // Anyone can view a product
+    create: ['admin', 'editor'], // Only admin/editor can create
+    update: ['admin', 'editor'],
+    delete: ['admin'],
+  },
+})
+```
+
+Public operations skip both the global auth middleware and permission checks. Other operations on the same resource still enforce auth normally.
+
 ### Role-based permissions
 
 ```ts
@@ -389,7 +408,7 @@ monapi enforces safe defaults:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `connection` | `mongoose.Connection` | *required* | MongoDB connection |
-| `framework` | `'express' \| 'hono' \| FrameworkAdapter` | `'express'` | Framework to use |
+| `framework` | `'express' \| 'hono'` | `'express'` | Framework to use |
 | `basePath` | `string` | `''` | Base path prefix for routes |
 | `auth` | `AuthConfig` | - | Auth configuration |
 | `defaults` | `DefaultConfig` | - | Global defaults |
@@ -414,33 +433,15 @@ Returns a framework-specific router:
 - **Express**: Express `Router` instance
 - **Hono**: Hono app instance
 
-## Custom Framework Adapter
-
-You can bring your own framework by implementing the `FrameworkAdapter` interface:
-
-```ts
-import { Monapi, FrameworkAdapter } from 'monapi'
-
-const myAdapter: FrameworkAdapter = {
-  name: 'my-framework',
-  createRouter(collections, options) { /* ... */ },
-  wrapHandler(handler) { /* ... */ },
-  createErrorHandler(logger) { /* ... */ },
-}
-
-const monapi = new Monapi({
-  connection: mongoose.connection,
-  framework: myAdapter,
-})
-```
-
 ## Contributing
 
 Contributions welcome! Areas that need help:
-- **Fastify adapter** - `src/adapters/framework/fastify.ts`
-- **NestJS adapter** - `src/adapters/framework/nestjs.ts`
-- **Koa adapter** - `src/adapters/framework/koa.ts`
-- **Zod/Joi/Yup schema adapters** - `src/adapters/schema/`
+- **Fastify adapter** - Add Fastify framework support
+- **NestJS adapter** - Add NestJS framework support
+- **Koa adapter** - Add Koa framework support
+- **Zod/Joi/Yup schema adapters** - Alternative schema validation support
+
+See the [GitHub repo](https://github.com/subhradwip01/monapi) for details.
 
 ## License
 

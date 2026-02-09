@@ -101,8 +101,8 @@ export interface MonapiConfig {
   /** Base path for all routes (e.g., '/api') */
   basePath?: string
 
-  /** Framework adapter ('express' or 'fastify') */
-  framework?: 'express' | 'fastify'
+  /** Framework adapter ('express' or 'hono') */
+  framework?: 'express' | 'hono'
 
   /** Default configuration */
   defaults?: DefaultConfig

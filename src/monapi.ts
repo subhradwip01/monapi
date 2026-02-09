@@ -8,7 +8,7 @@ import { defaultLogger } from './utils/logger'
 
 /**
  * Main Monapi class - orchestrates everything.
- * Framework-agnostic: works with Express, Fastify, Hono, NestJS, or custom adapters.
+ * Framework-agnostic: works with Express and Hono.
  *
  * Usage:
  *   // Express (default)
@@ -16,20 +16,10 @@ import { defaultLogger } from './utils/logger'
  *   monapi.resource('users', { schema: UserSchema })
  *   app.use('/api', monapi.router())
  *
- *   // Fastify
- *   const monapi = new Monapi({ connection, framework: 'fastify' })
- *   monapi.resource('users', { schema: UserSchema })
- *   await fastify.register(monapi.router(), { prefix: '/api' })
- *
  *   // Hono
  *   const monapi = new Monapi({ connection, framework: 'hono' })
  *   monapi.resource('users', { schema: UserSchema })
  *   app.route('/api', monapi.router())
- *
- *   // NestJS
- *   const monapi = new Monapi({ connection, framework: 'nestjs' })
- *   monapi.resource('users', { schema: UserSchema })
- *   // In AppModule: imports: [monapi.router()]
  */
 export class Monapi {
   private config: MonapiConfig
@@ -75,9 +65,7 @@ export class Monapi {
    * Generate the framework-specific router with all registered collection routes.
    *
    * - Express: returns an Express Router
-   * - Fastify: returns a Fastify plugin function
    * - Hono: returns a Hono app instance
-   * - NestJS: returns a dynamic module definition
    */
   router(): any {
     const result = this.frameworkAdapter.createRouter(this.collections, {

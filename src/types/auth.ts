@@ -19,9 +19,9 @@ export interface PermissionContext {
 export type PermissionFunction = (ctx: PermissionContext) => boolean | Promise<boolean>
 
 /**
- * Permission definition - can be array of roles or custom function
+ * Permission definition - can be 'public' (no auth), array of roles, or custom function
  */
-export type Permission = string[] | PermissionFunction
+export type Permission = 'public' | string[] | PermissionFunction
 
 /**
  * Permissions configuration for a collection

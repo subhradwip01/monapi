@@ -1,6 +1,6 @@
 {
   "name": "monapi",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Automatically generate secure, extensible REST APIs for MongoDB collections using configuration only",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
